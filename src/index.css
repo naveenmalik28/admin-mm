@@ -1,12 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  font-family: "Segoe UI", sans-serif;
+  font-family: "Outfit", "Segoe UI", sans-serif;
   background:
-    radial-gradient(circle at top right, rgba(197, 137, 64, 0.16), transparent 30%),
-    linear-gradient(180deg, #fffdf8 0%, #f8f4ea 70%, #eef6f4 100%);
+    radial-gradient(ellipse at top right, rgba(15, 118, 110, 0.08), transparent 40%),
+    linear-gradient(180deg, #f9fafb 0%, #f1f5f9 100%);
   color: #0f172a;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -25,11 +27,22 @@ body,
   margin: 0;
 }
 
+/* Custom Webkit Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-slatex/20 hover:bg-slatex/30;
+}
+
 .panel {
-  @apply rounded-[28px] border border-white/80 bg-white/85 shadow-card backdrop-blur;
+  @apply rounded-[28px] border border-white/80 bg-white shadow-card backdrop-blur-lg;
 }
 
 .field {
-  @apply w-full rounded-2xl border border-slatex/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-mint focus:ring-2 focus:ring-mint/20;
+  @apply w-full rounded-2xl border border-slatex/10 bg-white/60 px-4 py-3 text-sm outline-none transition focus:bg-white focus:border-mint focus:ring-4 focus:ring-mint/10;
 }
-

@@ -8,6 +8,7 @@ import ArticlesPage from "./pages/ArticlesPage.jsx"
 import CommentsPage from "./pages/CommentsPage.jsx"
 import LoginPage from "./pages/LoginPage.jsx"
 import OverviewPage from "./pages/OverviewPage.jsx"
+import PlansPage from "./pages/PlansPage.jsx"
 import RevenuePage from "./pages/RevenuePage.jsx"
 import SettingsPage from "./pages/SettingsPage.jsx"
 import UsersPage from "./pages/UsersPage.jsx"
@@ -95,6 +96,16 @@ export default function App() {
             <ProtectedRoute>
               <AdminLayout>
                 <RevenuePage />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/plans"
+          element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <PlansPage />
               </AdminLayout>
             </ProtectedRoute>
           }

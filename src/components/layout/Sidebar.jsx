@@ -1,12 +1,13 @@
 import { NavLink } from "react-router-dom"
 
 const links = [
-  { to: "/", label: "Overview", icon: "📊" },
-  { to: "/users", label: "Users", icon: "👥" },
-  { to: "/articles", label: "Articles", icon: "📝" },
-  { to: "/comments", label: "Comments", icon: "💬" },
-  { to: "/revenue", label: "Revenue", icon: "💳" },
-  { to: "/settings", label: "Settings", icon: "⚙️" },
+  { to: "/", label: "Overview", icon: "OV" },
+  { to: "/users", label: "Users", icon: "US" },
+  { to: "/articles", label: "Articles", icon: "AR" },
+  { to: "/comments", label: "Comments", icon: "CM" },
+  { to: "/revenue", label: "Revenue", icon: "RV" },
+  { to: "/plans", label: "Plans", icon: "PL" },
+  { to: "/settings", label: "Settings", icon: "ST" },
 ]
 
 export default function Sidebar() {
@@ -23,7 +24,9 @@ export default function Sidebar() {
               `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition ${isActive ? "bg-slatex text-white" : "hover:bg-mint/10"}`
             }
           >
-            <span className="text-base">{link.icon}</span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-[11px] font-bold tracking-wide">
+              {link.icon}
+            </span>
             {link.label}
           </NavLink>
         ))}

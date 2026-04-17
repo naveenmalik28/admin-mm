@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react"
 import { fetchSiteSettings, updateSiteSettings } from "../api/admin.api.js"
+import { LoadingSpinner } from "../components/ui/LoadingSpinner.jsx"
+import { showToast } from "../components/ui/Toast.jsx"
 
 const FIELD_GROUPS = [
   {
@@ -38,36 +40,30 @@ export default function SettingsPage() {
   const [form, setForm] = useState({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState("")
 
   useEffect(() => {
     fetchSiteSettings()
       .then((data) => setForm(data))
-      .catch(() => setError("Failed to load settings."))
+      .catch(() => showToast("Failed to load settings.", "error"))
       .finally(() => setLoading(false))
   }, [])
 
   const setField = (key, value) => {
-    setSaved(false)
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
   const handleSave = async () => {
     setSaving(true)
-    setError("")
-    setSaved(false)
     try {
       const result = await updateSiteSettings(form)
       setForm(result)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
+      showToast("Settings saved successfully!")
     } catch (err) {
       const detail = err.response?.data
       if (typeof detail === "object") {
-        setError(Object.entries(detail).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join(" | "))
+        showToast(Object.entries(detail).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join(" | "), "error")
       } else {
-        setError("Failed to save settings.")
+        showToast("Failed to save settings.", "error")
       }
     } finally {
       setSaving(false)
@@ -75,37 +71,33 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <section className="panel p-8">
-        <div className="text-xs uppercase tracking-[0.32em] text-mint">Configuration</div>
-        <h1 className="mt-4 text-4xl font-semibold">Platform Settings</h1>
+        <div className="text-xs uppercase tracking-[0.32em] text-mint font-semibold">Configuration</div>
+        <h1 className="mt-4 text-4xl font-bold tracking-tight">Platform Settings</h1>
         <p className="mt-2 text-sm text-slatex/60">Manage your site identity, social links, SEO defaults, and more.</p>
       </section>
 
-      {loading && <div className="panel p-6 text-center text-slatex/50">Loading settings…</div>}
-
-      {error && (
-        <div className="panel border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
-      )}
+      {loading && <LoadingSpinner />}
 
       {!loading && (
-        <>
+        <div className="max-w-4xl space-y-6 animate-fade-in-up">
           {FIELD_GROUPS.map((group) => (
-            <section key={group.title} className="panel p-6 space-y-5">
-              <div>
-                <h2 className="text-xl font-semibold">{group.title}</h2>
+            <section key={group.title} className="panel p-0 overflow-hidden">
+              <div className="border-b border-slatex/10 bg-slatex/5 px-8 py-5">
+                <h2 className="text-lg font-bold text-slatex">{group.title}</h2>
                 <p className="mt-1 text-sm text-slatex/50">{group.description}</p>
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-2 p-8">
                 {group.fields.map((field) => (
                   <div key={field.key} className={field.type === "textarea" ? "md:col-span-2" : ""}>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slatex/50">
+                    <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-slatex/50">
                       {field.label}
                     </label>
                     {field.type === "textarea" ? (
                       <textarea
-                        className="field min-h-[90px] resize-y"
+                        className="field min-h-[100px] resize-y"
                         placeholder={field.placeholder}
                         value={form[field.key] || ""}
                         onChange={(e) => setField(field.key, e.target.value)}
@@ -125,34 +117,39 @@ export default function SettingsPage() {
             </section>
           ))}
 
-          {/* Save button */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="rounded-full bg-mint px-8 py-3.5 text-sm font-semibold text-white shadow transition hover:bg-mint/90 disabled:opacity-50"
-            >
-              {saving ? "Saving…" : "Save all settings"}
-            </button>
-            {saved && (
-              <span className="text-sm font-semibold text-emerald-600 animate-pulse">✓ Settings saved successfully</span>
-            )}
-          </div>
+          {/* Save & External panel */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <section className="panel p-8 flex flex-col justify-center gap-4 border-l-4 border-l-mint">
+              <div>
+                <h2 className="text-xl font-bold">Save changes</h2>
+                <p className="mt-1 text-sm text-slatex/60">Publish these settings to production immediately.</p>
+              </div>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="w-max rounded-full bg-mint px-10 py-4 text-sm font-bold tracking-wide text-white shadow-lg shadow-mint/20 transition-all hover:-translate-y-0.5 hover:shadow-mint/40 hover:bg-mint/90 disabled:opacity-50"
+              >
+                {saving ? "Saving…" : "Save all settings"}
+              </button>
+            </section>
 
-          {/* Django admin link */}
-          <section className="panel p-6">
-            <h2 className="text-xl font-semibold">Django Admin</h2>
-            <p className="mt-2 text-sm text-slatex/60">For advanced model editing and database management, use the Django admin interface.</p>
-            <a
-              className="mt-4 inline-flex rounded-full bg-slatex px-5 py-3 text-sm font-semibold text-white transition hover:bg-slatex/90"
-              href={djangoAdminUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Open Django admin ↗
-            </a>
-          </section>
-        </>
+            {/* Django admin link */}
+            <section className="panel p-8 flex flex-col justify-center gap-4 bg-slatex text-white">
+              <div>
+                <h2 className="text-xl font-bold">Advanced Management</h2>
+                <p className="mt-1 text-sm text-white/60">For developer-level model editing and database access.</p>
+              </div>
+              <a
+                className="w-max inline-flex rounded-full bg-white px-8 py-3.5 text-sm font-bold text-slatex transition hover:bg-white/90"
+                href={djangoAdminUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Django admin ↗
+              </a>
+            </section>
+          </div>
+        </div>
       )}
     </div>
   )

@@ -41,6 +41,12 @@ export const deleteAdminComment = async (id) => (await api.delete(`/auth/admin/c
 export const fetchAdminSubscriptions = async () => (await api.get("/auth/admin/subscriptions/")).data
 export const fetchAdminPayments = async () => (await api.get("/auth/admin/payments/")).data
 
+// Plans
+export const fetchAdminPlans = async () => unwrapList(await api.get("/auth/admin/plans/"))
+export const createAdminPlan = async (payload) => (await api.post("/auth/admin/plans/", payload)).data
+export const updateAdminPlan = async (id, payload) => (await api.patch(`/auth/admin/plans/${id}/`, payload)).data
+export const deleteAdminPlan = async (id) => (await api.delete(`/auth/admin/plans/${id}/`)).data
+
 // Site Settings
 export const fetchSiteSettings = async () => (await api.get("/auth/admin/settings/")).data
 export const updateSiteSettings = async (payload) => (await api.put("/auth/admin/settings/", payload)).data

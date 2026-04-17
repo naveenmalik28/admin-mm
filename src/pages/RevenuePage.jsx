@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react"
 
 import { fetchAdminPayments, fetchAdminSubscriptions } from "../api/admin.api.js"
+import { LoadingSpinner } from "../components/ui/LoadingSpinner.jsx"
 
 const formatDate = (iso) => {
-  if (!iso) return "—"
+  if (!iso) return "-"
   return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
 }
 
@@ -17,6 +18,11 @@ const STATUS_COLORS = {
   refunded: "bg-blue-100 text-blue-600",
 }
 
+const sumSuccessfulPayments = (payments, currency) =>
+  payments
+    .filter((payment) => payment.status === "success" && (payment.currency || "INR").toUpperCase() === currency)
+    .reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0)
+
 export default function RevenuePage() {
   const [subscriptions, setSubscriptions] = useState([])
   const [payments, setPayments] = useState([])
@@ -24,68 +30,72 @@ export default function RevenuePage() {
 
   useEffect(() => {
     Promise.all([fetchAdminSubscriptions(), fetchAdminPayments()])
-      .then(([s, p]) => {
-        setSubscriptions(s)
-        setPayments(p)
+      .then(([subscriptionData, paymentData]) => {
+        setSubscriptions(subscriptionData)
+        setPayments(paymentData)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
-  const totalRevenue = payments
-    .filter((p) => p.status === "success")
-    .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0)
+  const totalRevenueInr = sumSuccessfulPayments(payments, "INR")
+  const totalRevenueUsd = sumSuccessfulPayments(payments, "USD")
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <section className="panel p-8">
-        <div className="text-xs uppercase tracking-[0.32em] text-mint">Revenue</div>
-        <h1 className="mt-4 text-4xl font-semibold">Subscriptions & Payments</h1>
-        <p className="mt-2 text-sm text-slatex/60">Track subscription activity and payment history.</p>
+        <div className="text-xs font-semibold uppercase tracking-[0.32em] text-mint">Revenue</div>
+        <h1 className="mt-4 text-4xl font-bold tracking-tight">Subscriptions and Payments</h1>
+        <p className="mt-2 text-sm text-slatex/60">Track subscription activity and payment history across both INR and USD transactions.</p>
       </section>
 
-      {loading && <div className="panel p-6 text-center text-slatex/50">Loading…</div>}
+      {loading && <LoadingSpinner />}
 
       {!loading && (
         <>
-          {/* Summary cards */}
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="panel p-6">
-              <div className="text-sm text-slatex/60">Total Subscriptions</div>
-              <div className="mt-2 text-3xl font-semibold tabular-nums">{subscriptions.length}</div>
+          <div className="grid gap-4 lg:grid-cols-4">
+            <div className="panel border-b-4 border-b-slatex/10 p-6 shadow-sm transition-all hover:border-b-mint">
+              <div className="text-[11px] font-bold uppercase tracking-widest text-slatex/50">Total subscriptions</div>
+              <div className="mt-3 text-4xl font-black tracking-tighter text-slatex">{subscriptions.length}</div>
             </div>
-            <div className="panel p-6">
-              <div className="text-sm text-slatex/60">Total Payments</div>
-              <div className="mt-2 text-3xl font-semibold tabular-nums">{payments.length}</div>
+            <div className="panel border-b-4 border-b-slatex/10 p-6 shadow-sm transition-all hover:border-b-mint">
+              <div className="text-[11px] font-bold uppercase tracking-widest text-slatex/50">Total payments</div>
+              <div className="mt-3 text-4xl font-black tracking-tighter text-slatex">{payments.length}</div>
             </div>
-            <div className="panel p-6">
-              <div className="text-sm text-slatex/60">Total Revenue</div>
-              <div className="mt-2 text-3xl font-semibold tabular-nums">
-                ₹{totalRevenue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+            <div className="panel border-b-4 border-b-emerald-500 p-6 shadow-sm transition-all hover:shadow-lg">
+              <div className="text-[11px] font-bold uppercase tracking-widest text-slatex/50">Successful INR revenue</div>
+              <div className="mt-3 text-3xl font-black tracking-tighter text-emerald-600">
+                INR {totalRevenueInr.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+            </div>
+            <div className="panel border-b-4 border-b-coral/80 p-6 shadow-sm transition-all hover:shadow-lg">
+              <div className="text-[11px] font-bold uppercase tracking-widest text-slatex/50">Successful USD revenue</div>
+              <div className="mt-3 text-3xl font-black tracking-tighter text-coral">
+                USD {totalRevenueUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
           </div>
 
-          {/* Two-column layout */}
           <section className="grid gap-6 xl:grid-cols-2">
-            {/* Subscriptions */}
-            <div className="panel overflow-hidden">
-              <div className="border-b border-slatex/10 px-6 py-4">
-                <h2 className="text-xl font-semibold">Subscriptions</h2>
+            <div className="panel flex flex-col overflow-hidden">
+              <div className="border-b border-slatex/10 bg-slatex/5 px-6 py-5">
+                <h2 className="text-lg font-bold tracking-tight text-slatex">Subscriptions</h2>
               </div>
               {subscriptions.length === 0 ? (
-                <div className="p-8 text-center text-slatex/50">No subscriptions yet.</div>
+                <div className="my-auto p-12 text-center font-medium text-slatex/50">No subscriptions yet.</div>
               ) : (
-                <div className="divide-y divide-slatex/5">
+                <div className="max-h-[600px] divide-y divide-slatex/5 overflow-y-auto">
                   {subscriptions.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between px-6 py-4 hover:bg-mint/5 transition">
+                    <div key={item.id} className="flex items-center justify-between px-6 py-5 transition hover:bg-mint/5">
                       <div>
-                        <div className="font-semibold text-sm">{item.user_email}</div>
-                        <div className="text-xs text-slatex/50 mt-0.5">
-                          {item.plan?.name} • {formatDate(item.starts_at)} → {formatDate(item.expires_at)}
+                        <div className="text-sm font-bold text-slatex">{item.user_email}</div>
+                        <div className="mt-1 text-xs font-medium text-slatex/50">
+                          <span className="text-mint">{item.plan?.name}</span>
+                          <span className="mx-2 opacity-40">/</span>
+                          {formatDate(item.starts_at)} to {formatDate(item.expires_at)}
                         </div>
                       </div>
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${STATUS_COLORS[item.status] || "bg-slate-100 text-slate-500"}`}>
+                      <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide shadow-sm ${STATUS_COLORS[item.status] || "bg-slate-100 text-slate-500"}`}>
                         {item.status}
                       </span>
                     </div>
@@ -94,26 +104,29 @@ export default function RevenuePage() {
               )}
             </div>
 
-            {/* Payments */}
-            <div className="panel overflow-hidden">
-              <div className="border-b border-slatex/10 px-6 py-4">
-                <h2 className="text-xl font-semibold">Payments</h2>
+            <div className="panel flex flex-col overflow-hidden">
+              <div className="border-b border-slatex/10 bg-slatex/5 px-6 py-5">
+                <h2 className="text-lg font-bold tracking-tight text-slatex">Payments</h2>
               </div>
               {payments.length === 0 ? (
-                <div className="p-8 text-center text-slatex/50">No payments yet.</div>
+                <div className="my-auto p-12 text-center font-medium text-slatex/50">No payments yet.</div>
               ) : (
-                <div className="divide-y divide-slatex/5">
+                <div className="max-h-[600px] divide-y divide-slatex/5 overflow-y-auto">
                   {payments.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between px-6 py-4 hover:bg-mint/5 transition">
+                    <div key={item.id} className="flex items-center justify-between px-6 py-5 transition hover:bg-mint/5">
                       <div>
-                        <div className="font-semibold text-sm">{item.user_email}</div>
-                        <div className="text-xs text-slatex/50 mt-0.5">
-                          {item.payment_gateway || "—"} • {formatDate(item.created_at)}
+                        <div className="text-sm font-bold text-slatex">{item.user_email}</div>
+                        <div className="mt-1 text-xs font-medium text-slatex/50">
+                          {item.payment_gateway || "-"}
+                          <span className="mx-2 opacity-40">/</span>
+                          {formatDate(item.created_at)}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-sm tabular-nums">{item.currency} {item.amount}</div>
-                        <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold capitalize ${STATUS_COLORS[item.status] || "bg-slate-100 text-slate-500"}`}>
+                      <div className="flex flex-col items-end gap-1.5 text-right">
+                        <div className="text-sm font-black tabular-nums text-slatex">
+                          {(item.currency || "INR").toUpperCase()} {item.amount}
+                        </div>
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide shadow-sm ${STATUS_COLORS[item.status] || "bg-slate-100 text-slate-500"}`}>
                           {item.status}
                         </span>
                       </div>
