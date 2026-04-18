@@ -36,7 +36,9 @@ const FIELD_GROUPS = [
 ]
 
 export default function SettingsPage() {
-  const djangoAdminUrl = import.meta.env.VITE_DJANGO_ADMIN_URL || "http://localhost:8000/admin/"
+  const djangoAdminUrl =
+    import.meta.env.VITE_DJANGO_ADMIN_URL ||
+    (import.meta.env.DEV ? "http://localhost:8000/admin/" : "https://api.magnivel.com/admin/")
   const [form, setForm] = useState({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
