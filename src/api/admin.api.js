@@ -1,6 +1,24 @@
 import api from "./axios.js"
 
 const unwrapList = (response) => response.data?.results ?? response.data
+const unwrapPaginatedList = (response) => {
+  const data = response.data
+  if (Array.isArray(data)) {
+    return {
+      count: data.length,
+      next: null,
+      previous: null,
+      results: data,
+    }
+  }
+
+  return {
+    count: data?.count ?? 0,
+    next: data?.next ?? null,
+    previous: data?.previous ?? null,
+    results: data?.results ?? [],
+  }
+}
 const isFile = (value) => typeof File !== "undefined" && value instanceof File
 const isPreviewUrl = (value) => typeof value === "string" && value.startsWith("blob:")
 
@@ -80,8 +98,10 @@ export const approveAdminComment = async (id) => (await api.post(`/auth/admin/co
 export const deleteAdminComment = async (id) => (await api.delete(`/auth/admin/comments/${id}/`)).data
 
 // Subscriptions & Payments
-export const fetchAdminSubscriptions = async () => (await api.get("/auth/admin/subscriptions/")).data
-export const fetchAdminPayments = async () => (await api.get("/auth/admin/payments/")).data
+export const fetchAdminSubscriptions = async ({ page = 1, pageSize = 25 } = {}) =>
+  unwrapPaginatedList(await api.get("/auth/admin/subscriptions/", { params: { page, page_size: pageSize } }))
+export const fetchAdminPayments = async ({ page = 1, pageSize = 25 } = {}) =>
+  unwrapPaginatedList(await api.get("/auth/admin/payments/", { params: { page, page_size: pageSize } }))
 
 // Plans
 export const fetchAdminPlans = async () => unwrapList(await api.get("/auth/admin/plans/"))

@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
-import { fetchAdminPayments, fetchAdminSubscriptions } from "../api/admin.api.js"
+import { fetchAdminPayments, fetchAdminSubscriptions, fetchAdminSummary } from "../api/admin.api.js"
 import { LoadingSpinner } from "../components/ui/LoadingSpinner.jsx"
+
+const PAGE_SIZE = 25
 
 const formatDate = (iso) => {
   if (!iso) return "-"
@@ -18,19 +20,66 @@ const STATUS_COLORS = {
   refunded: "bg-blue-100 text-blue-600",
 }
 
-const sumSuccessfulPayments = (payments, currency) =>
-  payments
-    .filter((payment) => payment.status === "success" && (payment.currency || "INR").toUpperCase() === currency)
-    .reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0)
+const formatMoney = (value, locale) =>
+  Number(value || 0).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+const pageCount = (count) => Math.max(1, Math.ceil((count || 0) / PAGE_SIZE))
+
+const PaginationControls = ({ label, page, totalCount, onChange }) => {
+  const totalPages = pageCount(totalCount)
+  const startItem = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
+  const endItem = totalCount === 0 ? 0 : Math.min(page * PAGE_SIZE, totalCount)
+
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-slatex/10 bg-white/70 px-6 py-4">
+      <div className="text-xs font-medium text-slatex/55">
+        {label}: {startItem}-{endItem} of {totalCount}
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onChange(page - 1)}
+          disabled={page <= 1}
+          className="rounded-full border border-slatex/10 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-slatex transition hover:border-mint hover:text-mint disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Previous
+        </button>
+        <div className="min-w-[84px] text-center text-xs font-bold uppercase tracking-wide text-slatex/60">
+          Page {page} / {totalPages}
+        </div>
+        <button
+          type="button"
+          onClick={() => onChange(page + 1)}
+          disabled={page >= totalPages}
+          className="rounded-full border border-slatex/10 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-slatex transition hover:border-mint hover:text-mint disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  )
+}
 
 export default function RevenuePage() {
-  const [subscriptions, setSubscriptions] = useState([])
-  const [payments, setPayments] = useState([])
+  const [subscriptions, setSubscriptions] = useState({ count: 0, results: [] })
+  const [payments, setPayments] = useState({ count: 0, results: [] })
+  const [summary, setSummary] = useState(null)
+  const [subscriptionPage, setSubscriptionPage] = useState(1)
+  const [paymentPage, setPaymentPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [subscriptionListLoading, setSubscriptionListLoading] = useState(false)
+  const [paymentListLoading, setPaymentListLoading] = useState(false)
+  const hasLoadedSubscriptionPage = useRef(false)
+  const hasLoadedPaymentPage = useRef(false)
 
   useEffect(() => {
-    Promise.all([fetchAdminSubscriptions(), fetchAdminPayments()])
-      .then(([subscriptionData, paymentData]) => {
+    Promise.all([
+      fetchAdminSummary(),
+      fetchAdminSubscriptions({ page: 1, pageSize: PAGE_SIZE }),
+      fetchAdminPayments({ page: 1, pageSize: PAGE_SIZE }),
+    ])
+      .then(([summaryData, subscriptionData, paymentData]) => {
+        setSummary(summaryData)
         setSubscriptions(subscriptionData)
         setPayments(paymentData)
       })
@@ -38,8 +87,33 @@ export default function RevenuePage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const totalRevenueInr = sumSuccessfulPayments(payments, "INR")
-  const totalRevenueUsd = sumSuccessfulPayments(payments, "USD")
+  useEffect(() => {
+    if (loading) return
+    if (!hasLoadedSubscriptionPage.current) {
+      hasLoadedSubscriptionPage.current = true
+      return
+    }
+
+    setSubscriptionListLoading(true)
+    fetchAdminSubscriptions({ page: subscriptionPage, pageSize: PAGE_SIZE })
+      .then(setSubscriptions)
+      .catch(() => {})
+      .finally(() => setSubscriptionListLoading(false))
+  }, [subscriptionPage, loading])
+
+  useEffect(() => {
+    if (loading) return
+    if (!hasLoadedPaymentPage.current) {
+      hasLoadedPaymentPage.current = true
+      return
+    }
+
+    setPaymentListLoading(true)
+    fetchAdminPayments({ page: paymentPage, pageSize: PAGE_SIZE })
+      .then(setPayments)
+      .catch(() => {})
+      .finally(() => setPaymentListLoading(false))
+  }, [paymentPage, loading])
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -56,22 +130,22 @@ export default function RevenuePage() {
           <div className="grid gap-4 lg:grid-cols-4">
             <div className="panel border-b-4 border-b-slatex/10 p-6 shadow-sm transition-all hover:border-b-mint">
               <div className="text-[11px] font-bold uppercase tracking-widest text-slatex/50">Total subscriptions</div>
-              <div className="mt-3 text-4xl font-black tracking-tighter text-slatex">{subscriptions.length}</div>
+              <div className="mt-3 text-4xl font-black tracking-tighter text-slatex">{summary?.subscriptions ?? subscriptions.count ?? 0}</div>
             </div>
             <div className="panel border-b-4 border-b-slatex/10 p-6 shadow-sm transition-all hover:border-b-mint">
               <div className="text-[11px] font-bold uppercase tracking-widest text-slatex/50">Total payments</div>
-              <div className="mt-3 text-4xl font-black tracking-tighter text-slatex">{payments.length}</div>
+              <div className="mt-3 text-4xl font-black tracking-tighter text-slatex">{summary?.payments ?? payments.count ?? 0}</div>
             </div>
             <div className="panel border-b-4 border-b-emerald-500 p-6 shadow-sm transition-all hover:shadow-lg">
               <div className="text-[11px] font-bold uppercase tracking-widest text-slatex/50">Successful INR revenue</div>
               <div className="mt-3 text-3xl font-black tracking-tighter text-emerald-600">
-                INR {totalRevenueInr.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                INR {formatMoney(summary?.successful_revenue_inr, "en-IN")}
               </div>
             </div>
             <div className="panel border-b-4 border-b-coral/80 p-6 shadow-sm transition-all hover:shadow-lg">
               <div className="text-[11px] font-bold uppercase tracking-widest text-slatex/50">Successful USD revenue</div>
               <div className="mt-3 text-3xl font-black tracking-tighter text-coral">
-                USD {totalRevenueUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                USD {formatMoney(summary?.successful_revenue_usd, "en-US")}
               </div>
             </div>
           </div>
@@ -81,11 +155,11 @@ export default function RevenuePage() {
               <div className="border-b border-slatex/10 bg-slatex/5 px-6 py-5">
                 <h2 className="text-lg font-bold tracking-tight text-slatex">Subscriptions</h2>
               </div>
-              {subscriptions.length === 0 ? (
+              {subscriptions.results?.length === 0 ? (
                 <div className="my-auto p-12 text-center font-medium text-slatex/50">No subscriptions yet.</div>
               ) : (
                 <div className="max-h-[600px] divide-y divide-slatex/5 overflow-y-auto">
-                  {subscriptions.map((item) => (
+                  {subscriptions.results.map((item) => (
                     <div key={item.id} className="flex items-center justify-between px-6 py-5 transition hover:bg-mint/5">
                       <div>
                         <div className="text-sm font-bold text-slatex">{item.user_email}</div>
@@ -102,17 +176,23 @@ export default function RevenuePage() {
                   ))}
                 </div>
               )}
+              <PaginationControls
+                label="Subscriptions"
+                page={subscriptionPage}
+                totalCount={subscriptions.count ?? 0}
+                onChange={setSubscriptionPage}
+              />
             </div>
 
             <div className="panel flex flex-col overflow-hidden">
               <div className="border-b border-slatex/10 bg-slatex/5 px-6 py-5">
                 <h2 className="text-lg font-bold tracking-tight text-slatex">Payments</h2>
               </div>
-              {payments.length === 0 ? (
+              {payments.results?.length === 0 ? (
                 <div className="my-auto p-12 text-center font-medium text-slatex/50">No payments yet.</div>
               ) : (
                 <div className="max-h-[600px] divide-y divide-slatex/5 overflow-y-auto">
-                  {payments.map((item) => (
+                  {payments.results.map((item) => (
                     <div key={item.id} className="flex items-center justify-between px-6 py-5 transition hover:bg-mint/5">
                       <div>
                         <div className="text-sm font-bold text-slatex">{item.user_email}</div>
@@ -134,8 +214,16 @@ export default function RevenuePage() {
                   ))}
                 </div>
               )}
+              <PaginationControls
+                label="Payments"
+                page={paymentPage}
+                totalCount={payments.count ?? 0}
+                onChange={setPaymentPage}
+              />
             </div>
           </section>
+
+          {(subscriptionListLoading || paymentListLoading) && <LoadingSpinner label="Refreshing revenue data" />}
         </>
       )}
     </div>
