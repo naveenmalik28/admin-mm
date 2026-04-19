@@ -9,10 +9,9 @@ import {
   fetchAdminCategories,
   fetchAdminTags,
   createAdminTag,
-  uploadAdminImage,
 } from "../api/admin.api.js"
 import { showToast } from "../components/ui/Toast.jsx"
-import { LoadingSpinner, Skeleton } from "../components/ui/LoadingSpinner.jsx"
+import { LoadingSpinner } from "../components/ui/LoadingSpinner.jsx"
 
 const EMPTY_FORM = {
   title: "",
@@ -21,6 +20,7 @@ const EMPTY_FORM = {
   category_id: "",
   tag_ids: [],
   cover_image: "",
+  cover_image_file: null,
   status: "draft",
   is_featured: false,
 }
@@ -54,6 +54,7 @@ export default function ArticleFormPage() {
             category_id: article.category?.id ?? "",
             tag_ids: (article.tags || []).map((t) => t.id),
             cover_image: article.cover_image || "",
+            cover_image_file: null,
             status: article.status || "draft",
             is_featured: article.is_featured || false,
           })
@@ -64,6 +65,14 @@ export default function ArticleFormPage() {
       fetchMeta.finally(() => setLoading(false))
     }
   }, [id, isEdit])
+
+  useEffect(() => {
+    return () => {
+      if (form.cover_image?.startsWith("blob:")) {
+        URL.revokeObjectURL(form.cover_image)
+      }
+    }
+  }, [form.cover_image])
 
   const setField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }))
 
@@ -225,16 +234,15 @@ export default function ArticleFormPage() {
                 type="file" 
                 accept="image/*"
                 className="absolute inset-0 z-10 w-full h-full cursor-pointer opacity-0"
-                onChange={async (e) => {
+                onChange={(e) => {
                   if (e.target.files?.[0]) {
-                    showToast("Uploading image...", "success")
-                    try {
-                      const { url } = await uploadAdminImage(e.target.files[0])
-                      setField("cover_image", url)
-                      showToast("Image uploaded!")
-                    } catch {
-                      showToast("Failed to upload image", "error")
-                    }
+                    const previewUrl = URL.createObjectURL(e.target.files[0])
+                    setForm((prev) => ({
+                      ...prev,
+                      cover_image: previewUrl,
+                      cover_image_file: e.target.files[0],
+                    }))
+                    showToast("Image selected. It will upload when you save.")
                   }
                 }}
               />
@@ -249,6 +257,7 @@ export default function ArticleFormPage() {
                 <div className="text-center">
                   <div className="text-3xl mb-2 text-slatex/30">📸</div>
                   <span className="text-xs font-bold text-mint">Click or drag image to upload</span>
+                  <p className="mt-2 text-[11px] text-slatex/45">The backend uploads it to Cloudinary and stores the URL in Neon when you save.</p>
                 </div>
               )}
             </div>
@@ -259,7 +268,7 @@ export default function ArticleFormPage() {
                 className="field text-xs py-2 bg-transparent"
                 placeholder="https://..."
                 value={form.cover_image}
-                onChange={(e) => setField("cover_image", e.target.value)}
+                onChange={(e) => setForm((prev) => ({ ...prev, cover_image: e.target.value, cover_image_file: null }))}
               />
             </div>
           </div>

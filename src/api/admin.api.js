@@ -1,6 +1,47 @@
 import api from "./axios.js"
 
 const unwrapList = (response) => response.data?.results ?? response.data
+const isFile = (value) => typeof File !== "undefined" && value instanceof File
+const isPreviewUrl = (value) => typeof value === "string" && value.startsWith("blob:")
+
+const toArticleRequestBody = (payload = {}) => {
+  if (!isFile(payload.cover_image_file)) {
+    const jsonPayload = { ...payload }
+    if (isPreviewUrl(jsonPayload.cover_image)) {
+      delete jsonPayload.cover_image
+    }
+    if (!jsonPayload.cover_image_file) {
+      delete jsonPayload.cover_image_file
+    }
+    return jsonPayload
+  }
+
+  const formData = new FormData()
+
+  Object.entries(payload).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      value.forEach((item) => formData.append(key, item))
+      return
+    }
+
+    if (key === "cover_image" && isPreviewUrl(value)) {
+      return
+    }
+
+    if (value === undefined || value === null) {
+      return
+    }
+
+    formData.append(key, value)
+  })
+
+  return formData
+}
+
+const requestConfig = (body) =>
+  body instanceof FormData
+    ? { headers: { "Content-Type": "multipart/form-data" } }
+    : undefined
 
 // Summary
 export const fetchAdminSummary = async () => (await api.get("/auth/admin/summary/")).data
@@ -11,14 +52,15 @@ export const fetchAdminUsers = async () => unwrapList(await api.get("/auth/admin
 // Articles
 export const fetchAdminArticles = async () => unwrapList(await api.get("/auth/admin/articles/"))
 export const fetchAdminArticle = async (id) => (await api.get(`/auth/admin/articles/${id}/`)).data
-export const createAdminArticle = async (payload) => (await api.post("/auth/admin/articles/create/", payload)).data
-export const updateAdminArticle = async (id, payload) => (await api.patch(`/auth/admin/articles/${id}/`, payload)).data
-export const deleteAdminArticle = async (id) => (await api.delete(`/auth/admin/articles/${id}/`)).data
-export const uploadAdminImage = async (file) => {
-  const formData = new FormData()
-  formData.append("image", file)
-  return (await api.post("/articles/upload-image/", formData, { headers: { "Content-Type": "multipart/form-data" } })).data
+export const createAdminArticle = async (payload) => {
+  const body = toArticleRequestBody(payload)
+  return (await api.post("/auth/admin/articles/create/", body, requestConfig(body))).data
 }
+export const updateAdminArticle = async (id, payload) => {
+  const body = toArticleRequestBody(payload)
+  return (await api.patch(`/auth/admin/articles/${id}/`, body, requestConfig(body))).data
+}
+export const deleteAdminArticle = async (id) => (await api.delete(`/auth/admin/articles/${id}/`)).data
 
 // Categories
 export const fetchAdminCategories = async () => unwrapList(await api.get("/categories/"))
