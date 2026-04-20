@@ -76,7 +76,7 @@ function PlanEditorModal({ open, form, mode, saving, onClose, onChange, onFeatur
           <h2 className="mt-3 text-2xl sm:text-3xl font-bold tracking-tight text-slatex">
             {mode === "create" ? "Create subscription plan" : "Update subscription plan"}
           </h2>
-          <p className="mt-2 text-sm text-slatex/60">Manage dual pricing (INR & USD), feature list, and display settings.</p>
+          <p className="mt-2 text-sm text-slatex/60">Configure pricing and duration limits. INR is universally used for readers in India. USD applies to international readers when a USD price is explicitly configured.</p>
         </div>
 
         <form className="flex min-h-0 flex-col" onSubmit={onSubmit}>
@@ -115,7 +115,7 @@ function PlanEditorModal({ open, form, mode, saving, onClose, onChange, onFeatur
                   <input className="field" type="number" min="0" step="0.01" value={form.price} onChange={(event) => onChange("price", event.target.value)} required placeholder="0.00" />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-slatex/50">USD price</span>
+                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-slatex/50">USD price (Optional Global)</span>
                   <input className="field" type="number" min="0" step="0.01" value={form.price_usd} onChange={(event) => onChange("price_usd", event.target.value)} placeholder="0.00" />
                 </label>
                 <label className="block sm:col-span-2 md:col-span-1">
@@ -351,7 +351,7 @@ export default function PlansPage() {
             <div className="text-xs font-semibold uppercase tracking-[0.32em] text-mint">Subscription setup</div>
             <h1 className="mt-4 text-4xl font-bold tracking-tight">Plans</h1>
             <p className="mt-2 max-w-2xl text-sm text-slatex/60">
-              Create and maintain the subscription plans that appear on the public pricing page, including dual pricing for INR and USD.
+              Create and maintain subscription plans. Specify INR as the base currency and provide an optional USD rate for global reach. 
             </p>
           </div>
           <button
