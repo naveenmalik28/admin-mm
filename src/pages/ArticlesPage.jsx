@@ -52,8 +52,8 @@ export default function ArticlesPage() {
   const [editTagId, setEditTagId] = useState(null)
   const [editTagForm, setEditTagForm] = useState({ name: "", slug: "" })
 
-  const reload = (showLoad = true) => {
-    if (showLoad) setLoading(true)
+  const reload = () => {
+    setLoading(true)
     Promise.all([fetchAdminArticles(), fetchAdminCategories(), fetchAdminTags()])
       .then(([a, c, t]) => {
         setArticles(a)
@@ -65,7 +65,14 @@ export default function ArticlesPage() {
   }
 
   useEffect(() => {
-    reload()
+    Promise.all([fetchAdminArticles(), fetchAdminCategories(), fetchAdminTags()])
+      .then(([a, c, t]) => {
+        setArticles(a)
+        setCategories(c)
+        setTags(t)
+      })
+      .catch(() => showToast("Failed to load content.", "error"))
+      .finally(() => setLoading(false))
   }, [])
 
   const executeDelete = async () => {
@@ -85,6 +92,7 @@ export default function ArticlesPage() {
         showToast("Tag deleted successfully")
       }
     } catch (error) {
+      console.error(error)
       showToast("Failed to delete.", "error")
     }
   }
@@ -100,7 +108,7 @@ export default function ArticlesPage() {
       setNewCatSlug("")
       setNewCatDesc("")
       showToast("Category created successfully")
-      reload(false)
+      reload()
     } catch (error) {
       const msg = error.response?.data?.slug?.[0] || error.response?.data?.name?.[0] || "Failed to create category."
       showToast(msg, "error")
@@ -122,7 +130,7 @@ export default function ArticlesPage() {
       await updateAdminCategory(editCatId, editCatForm)
       cancelEditCategory()
       showToast("Category updated")
-      reload(false)
+      reload()
     } catch (error) {
       const msg = error.response?.data?.slug?.[0] || error.response?.data?.name?.[0] || "Failed to update category."
       showToast(msg, "error")
@@ -139,7 +147,7 @@ export default function ArticlesPage() {
       setNewTagName("")
       setNewTagSlug("")
       showToast("Tag created successfully")
-      reload(false)
+      reload()
     } catch (error) {
       const msg = error.response?.data?.slug?.[0] || error.response?.data?.name?.[0] || "Failed to create tag."
       showToast(msg, "error")
@@ -161,7 +169,7 @@ export default function ArticlesPage() {
       await updateAdminTag(editTagId, editTagForm)
       cancelEditTag()
       showToast("Tag updated")
-      reload(false)
+      reload()
     } catch (error) {
       const msg = error.response?.data?.slug?.[0] || error.response?.data?.name?.[0] || "Failed to update tag."
       showToast(msg, "error")
