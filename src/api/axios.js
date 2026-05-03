@@ -3,17 +3,42 @@ import axios from "axios"
 import { useAdminAuthStore } from "../store/authStore.js"
 
 const productionApiUrl = "https://api.magnivel.com"
-const baseURL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:8000" : productionApiUrl)
+
+const baseURL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? "http://localhost:8000" : productionApiUrl)
 
 const api = axios.create({
   baseURL: `${baseURL}/api`,
+  timeout: 30_000,
 })
+
+let isRefreshing = false
+let refreshSubscribers = []
+
+const subscribeTokenRefresh = (resolve, reject) => {
+  refreshSubscribers.push({ resolve, reject })
+}
+
+const onRefreshed = (newToken) => {
+  refreshSubscribers.forEach(({ resolve }) => resolve(newToken))
+  refreshSubscribers = []
+}
+
+const onRefreshFailed = (refreshError) => {
+  refreshSubscribers.forEach(({ reject }) => reject(refreshError))
+  refreshSubscribers = []
+}
 
 api.interceptors.request.use((config) => {
   const { accessToken } = useAdminAuthStore.getState()
+
+  config.headers = config.headers || {}
+
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`
   }
+
   return config
 })
 
@@ -21,24 +46,62 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
-    if (error.response?.status === 401 && !originalRequest?._retry) {
+    const { refreshToken, user, login, logout } = useAdminAuthStore.getState()
+
+    if (!originalRequest || originalRequest.url?.includes("/auth/token/refresh/")) {
+      return Promise.reject(error)
+    }
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
-      const { refreshToken, user, login, logout } = useAdminAuthStore.getState()
+
       if (!refreshToken) {
         logout()
         return Promise.reject(error)
       }
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          subscribeTokenRefresh(
+            (token) => {
+              originalRequest.headers = originalRequest.headers || {}
+              originalRequest.headers.Authorization = `Bearer ${token}`
+              resolve(api(originalRequest))
+            },
+            (refreshError) => reject(refreshError),
+          )
+        })
+      }
+
+      isRefreshing = true
+
       try {
-        const response = await axios.post(`${baseURL}/api/auth/token/refresh/`, { refresh: refreshToken })
-        login(user, response.data.access, refreshToken)
-        originalRequest.headers.Authorization = `Bearer ${response.data.access}`
+        const response = await axios.post(
+          `${baseURL}/api/auth/token/refresh/`,
+          { refresh: refreshToken },
+          { timeout: 30_000 },
+        )
+
+        const newAccessToken = response.data.access
+        const newRefreshToken = response.data.refresh ?? refreshToken
+
+        login(user, newAccessToken, newRefreshToken)
+        onRefreshed(newAccessToken)
+
+        originalRequest.headers = originalRequest.headers || {}
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
+
         return api(originalRequest)
       } catch (refreshError) {
+        onRefreshFailed(refreshError)
         logout()
         window.location.href = "/login"
         return Promise.reject(refreshError)
+      } finally {
+        isRefreshing = false
       }
     }
+
     return Promise.reject(error)
   },
 )
